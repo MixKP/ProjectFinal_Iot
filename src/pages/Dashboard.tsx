@@ -1,100 +1,184 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { authService } from "../services/authService";
+
+interface ActiveUser {
+  username: string;
+  totalTodayMl: number;
+}
+
+interface DashboardData {
+  waterLeftLiters: number;
+  activeUser: ActiveUser | null;
+  users: ActiveUser[];
+}
 
 export default function Dashboard() {
-  const [waterLeft, setWaterLeft] = useState(10000);
-  const [users, setUsers] = useState([]);
-  const navigate = useNavigate();
-  const username = localStorage.getItem("user");
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState("");
+
+  async function load() {
+    try {
+      const res = await authService.getDashboard();
+
+      // debug ดู payload จริงจาก backend
+      console.log("[dashboard] /api/dashboard ->", res.data);
+
+      // ปรับ payload ให้ปลอดภัยก่อนเซ็ต
+      const safeData: DashboardData = {
+        waterLeftLiters: typeof res.data.waterLeftLiters === "number"
+          ? res.data.waterLeftLiters
+          : 0,
+        activeUser: res.data.activeUser && res.data.activeUser.username
+          ? {
+              username: String(res.data.activeUser.username),
+              totalTodayMl: Number(res.data.activeUser.totalTodayMl || 0),
+            }
+          : null,
+        users: Array.isArray(res.data.users)
+          ? res.data.users.map((u: any) => ({
+              username: String(u.username),
+              totalTodayMl: Number(u.totalTodayMl || 0),
+            }))
+          : [],
+      };
+
+      setData(safeData);
+      setError("");
+    } catch (err: any) {
+      console.error("[dashboard] load() error", err);
+      setError(err?.response?.data?.message || "failed to load dashboard");
+    }
+  }
+
+  async function handleReset() {
+    try {
+      await authService.resetDevice();
+      await load();
+    } catch (err) {
+      console.error("[dashboard] resetDevice error", err);
+    }
+  }
 
   useEffect(() => {
-    if (!username) navigate("/login");
-  }, [username, navigate]);
+    let alive = true;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const res = await fetch("http://192.168.1.34:3000/api/status");
-      const data = await res.json();
-      setWaterLeft(data.waterLeft);
-      setUsers(data.users);
+    // wrap ให้เช็คว่ายัง mounted ก่อนค่อย setState
+    async function tick() {
+      if (!alive) return;
+      await load();
+    }
+
+    // โหลดครั้งแรก
+    tick();
+
+    // poll ทุก 1 วิ
+    const id = setInterval(tick, 1000);
+
+    return () => {
+      alive = false;
+      clearInterval(id);
     };
-
-    fetchData();
-    const interval = setInterval(fetchData, 2000);
-    return () => clearInterval(interval);
   }, []);
 
-  const percent = Math.min((waterLeft / 10000) * 100, 100);
+  // ----- render states -----
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-[#d5d5d5] p-4">
+        <div className="max-w-xl mx-auto text-red-600">{error}</div>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="min-h-screen bg-[#d5d5d5] p-4">
+        <div className="max-w-xl mx-auto text-gray-800">Loading...</div>
+      </main>
+    );
+  }
+
+  const { waterLeftLiters, activeUser, users } = data;
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-blue-100 px-8 py-4 flex justify-between items-center w-full">
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-          💧 Water Usage Dashboard
-        </h1>
-        <div className="flex items-center gap-4">
-          <span className="text-gray-600 text-sm">
-            Welcome, <span className="font-semibold">{username}</span>
-          </span>
-          <button
-            onClick={() => {
-              localStorage.removeItem("user");
-              navigate("/login");
-            }}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2 rounded-lg text-sm shadow-sm transition active:scale-95"
-          >
-            Logout
-          </button>
-        </div>
-      </header>
+    <main className="min-h-screen bg-[#d5d5d5] p-4">
+      <div className="max-w-xl mx-auto flex flex-col gap-4">
 
-      {/* Main */}
-      <main className="flex-1 w-full px-8 py-8 overflow-auto">
-        {/* Progress */}
-        <section className="bg-white shadow-md rounded-2xl p-6 mb-8 border border-blue-100 w-full">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-semibold text-gray-700">Water Left</h2>
-            <span className="text-sm text-gray-500">
-              {percent.toFixed(1)}% remaining
-            </span>
+        {/* แถบสถานะด้านบน */}
+        <header className="bg-white border shadow rounded-md p-4 flex flex-col gap-1">
+          <div className="text-sm text-gray-600 font-medium">
+            Device Status
           </div>
-          <div className="text-3xl font-bold text-blue-700 mb-2">
-            {(waterLeft / 1000).toFixed(1)} L{" "}
-            <span className="text-base text-gray-500">({waterLeft} ml)</span>
+          <div className="text-lg font-semibold text-gray-900">
+            Water Left: {waterLeftLiters.toFixed(1)}L
           </div>
-          <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-700"
-              style={{ width: `${percent}%` }}
-            ></div>
+          {activeUser ? (
+            <div className="text-sm text-gray-800">
+              Active User:{" "}
+              <span className="font-semibold">{activeUser.username}</span>{" "}
+              ({activeUser.totalTodayMl} ml today)
+            </div>
+          ) : (
+            <div className="text-sm text-yellow-600 font-medium">
+              No active user (Please login…)
+            </div>
+          )}
+        </header>
+
+        {/* Panel น้ำคงเหลือแบบเดิมของคุณ */}
+        <section className="bg-[#312E2F] text-white rounded-md p-4 border border-gray-500 shadow-md">
+          <div className="text-3xl font-bold mb-2">
+            {waterLeftLiters.toFixed(1)}L left
           </div>
+
+          {activeUser ? (
+            <div className="text-sm font-semibold">
+              Current user: {activeUser.username} ({activeUser.totalTodayMl}ml today)
+            </div>
+          ) : (
+            <div className="text-sm font-semibold text-yellow-300">
+              No active user (Please login...)
+            </div>
+          )}
         </section>
 
-        {/* User List */}
-        <div className="mb-4 text-lg font-semibold text-gray-700">User List</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
-          {users.map((user, i) => (
-            <div
-              key={i}
-              className="bg-white shadow-lg rounded-xl p-6 flex flex-col justify-between border border-gray-100 hover:shadow-xl transition-all duration-300"
+        {/* User list + Reset */}
+        <section className="bg-white rounded-md p-4 shadow border">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-lg">Users</h2>
+
+            <button
+              onClick={handleReset}
+              className="text-xs bg-red-600 text-white rounded px-3 py-1 font-semibold hover:bg-red-500"
             >
-              <div>
-                <h2 className="text-lg font-semibold text-gray-800">
-                  {user.name}
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">Used water</p>
-              </div>
-              <div className="text-right mt-4">
-                <span className="text-3xl font-bold text-blue-600">
-                  {user.useWater}
-                </span>
-                <span className="text-sm text-gray-500 ml-1">ml</span>
-              </div>
+              Reset Device
+            </button>
+          </div>
+
+          {users.length === 0 ? (
+            <div className="text-sm text-gray-500">
+              No users yet. Register first.
             </div>
-          ))}
-        </div>
-      </main>
-    </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="py-1">Username</th>
+                  <th className="py-1 text-right">Today (ml)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.username} className="border-b last:border-0">
+                    <td className="py-1">{u.username}</td>
+                    <td className="py-1 text-right">{u.totalTodayMl}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }

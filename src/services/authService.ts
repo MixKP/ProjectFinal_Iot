@@ -1,18 +1,21 @@
-import { http } from "./http";
+import axios from "axios";
+
+const API_BASE = "http://192.168.1.34:3000/api";
 
 export const authService = {
-  async login(username: string, password: string) {
-    const res = await http.post("/login", { username, password });
-    return res.data;
+  register(username: string, password: string) {
+    return axios.post(`${API_BASE}/register`, { username, password });
   },
-
-  async register(username: string, password: string) {
-    const res = await http.post("/register", { username, password });
-    return res.data;
+  login(username: string, password: string) {
+    return axios.post(`${API_BASE}/login`, { username, password });
   },
-
-  async logout(username: string) {
-    const res = await http.post("/logout", { username });
-    return res.data;
+  logout() {
+    return axios.post(`${API_BASE}/logout`);
+  },
+  getDashboard() {
+    return axios.get(`${API_BASE}/dashboard`);
+  },
+  resetDevice() {
+    return axios.post(`${API_BASE}/device/reset`);
   },
 };
