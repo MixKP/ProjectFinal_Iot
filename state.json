@@ -1,7 +1,4 @@
 {
-  "activeUser": {
-    "username": "mix",
-    "totalTodayMl": 3900
-  },
-  "waterLeftLiters": 10
+  "activeUser": null,
+  "waterLeftLiters": 5.399999999999982
 }

@@ -18,7 +18,6 @@ interface DashboardData {
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  // backend data
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
 
@@ -56,7 +55,7 @@ export default function Dashboard() {
       const res = await authService.getDashboard();
       const d: DashboardData = res.data;
 
-      // ถ้าไม่มี activeUser -> กลับ login
+      // ไม่มี activeUser -> กลับ login
       if (!d.activeUser) {
         navigate("/login");
         return;
@@ -78,7 +77,7 @@ export default function Dashboard() {
     navigate("/login");
   }
 
-  // poll dashboard data ทุกวินาที
+  // poll dashboard data ทุก 1 วิ
   useEffect(() => {
     load();
     const pollId = setInterval(load, 1000);
@@ -104,7 +103,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // states
   if (error) {
     return (
       <main className="min-h-screen bg-[#f5f6fa] flex items-center justify-center p-4">
@@ -123,7 +121,7 @@ export default function Dashboard() {
 
   const { activeUser, waterLeftLiters, users } = data;
 
-  // ✅ เรียงให้ active user อยู่อันดับแรกเสมอ
+  // active user card ต้องขึ้นก่อนเสมอ
   const sortedUsers = [
     ...users.filter((u) => u.username === activeUser.username),
     ...users.filter((u) => u.username !== activeUser.username),
@@ -135,28 +133,32 @@ export default function Dashboard() {
         {/* Navbar */}
         <Navbar username={activeUser.username} onLogout={handleLogout} />
 
-        {/* Water Panel */}
-        <WaterPanel waterLeftLiters={waterLeftLiters} />
+        {/* Water status card with progress bar */}
+        <WaterPanel
+          waterLeftLiters={waterLeftLiters}
+          tankCapacityLiters={10}
+        />
 
-        {/* Session timer */}
+        {/* Header row above user cards */}
         <div className="flex items-center justify-between">
           <div className="text-[12px] tracking-wide uppercase font-medium text-gray-500">
             Users today
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-[12px] text-gray-500">
+
+          <div className="flex items-center gap-4 text-[12px] text-gray-500">
+            <div>
               Auto logout in{" "}
               <span className="font-semibold text-gray-700">
                 {secondsLeft}s
               </span>
             </div>
-            <div className="text-[12px] text-gray-400">
+            <div className="text-gray-400">
               {users.length} user{users.length === 1 ? "" : "s"}
             </div>
           </div>
         </div>
 
-        {/* User cards grid */}
+        {/* User grid */}
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sortedUsers.map((u) => (
             <UserCard

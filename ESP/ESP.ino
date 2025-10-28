@@ -128,7 +128,7 @@ void pollStatusAndUpdateLCD() {
     if (!err) {
       bool needLogin = doc["needLogin"] | true;
       const char* line1 = doc["line1"] | "Authentication";
-      const char* line2 = doc["line2"] | "";
+      const char* line2 = doc["line2"] | "Please login...";
 
       lcd.clear();
       lcd.setCursor(0,0);
@@ -136,7 +136,7 @@ void pollStatusAndUpdateLCD() {
 
       lcd.setCursor(0,1);
       if (needLogin) {
-        lcd.print("Please login...");
+        lcd.print("Please Login...");
       } else {
         lcd.print(line2);
       }

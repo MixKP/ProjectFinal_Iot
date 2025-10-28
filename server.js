@@ -65,7 +65,7 @@ function loadState() {
       parsed.activeUser && parsed.activeUser.username
         ? {
             username: String(parsed.activeUser.username),
-            totalTodayMl: Number(parsed.activeUser.totalTodayMl || 0),
+            totalTodayMl: Number(Math.round(parsed.activeUser.totalTodayMl || 0)),
           }
         : null;
 
@@ -144,13 +144,13 @@ app.post("/api/logout", (req, res) => {
 // IOT STATUS
 app.get("/api/iot/status", (req, res) => {
   if (!activeUser) {
-    return res.json({ needLogin: true, line1: "Please login...", line2: "" });
+    return res.json({ needLogin: true, line1: "Authentication", line2: "Please login..." });
   }
 
   res.json({
     needLogin: false,
     line1: `Left: ${waterLeftLiters.toFixed(1)}L`,
-    line2: `${activeUser.username} ${activeUser.totalTodayMl}ml`,
+    line2: `${activeUser.username} : ${activeUser.totalTodayMl}ml`,
   });
 });
 
@@ -159,20 +159,49 @@ app.post("/api/device/update", (req, res) => {
   const { usedMlPerTick } = req.body;
   const usedMl = Number(usedMlPerTick || 0);
 
-  waterLeftLiters -= usedMl / 1000.0;
+  // ไม่มีน้ำเหลือแล้ว
+  if (waterLeftLiters <= 0) {
+    waterLeftLiters = 0; // กันค่าติดลบหลุดรอด
+    saveState();
+    return res.json({
+      message: "No water left",
+      dry: true, // flag บอก ESP / frontend ว่าหมดน้ำ
+      waterLeftLiters,
+      activeUser,
+    });
+  }
+
+  // มีน้ำเหลือบ้าง -> คำนวน usage จริงที่ดึงออกได้
+  // กรณีถังเหลือน้อยกว่า usedMlPerTick
+  const availableMl = Math.round(waterLeftLiters * 1000.0); // แปลง L -> ml ที่เหลือจริง
+  const actualUsedMl = Math.min(usedMl, availableMl); // ใช้ได้เท่านี้จริง
+
+  // หักน้ำในถัง
+  waterLeftLiters -= actualUsedMl / 1000.0;
   if (waterLeftLiters < 0) waterLeftLiters = 0;
 
-  if (activeUser) {
-    activeUser.totalTodayMl += usedMl;
-    const idx = users.findIndex((u) => u.username === activeUser.username);
-    if (idx !== -1) users[idx].totalTodayMl = activeUser.totalTodayMl;
-    saveUsers(users);
+  // บวกยอดให้ user ถ้าล็อกอินอยู่
+  if (activeUser && actualUsedMl > 0) {
+    activeUser.totalTodayMl += actualUsedMl;
+
+    const idx = users.findIndex(
+      (u) => u.username === activeUser.username
+    );
+    if (idx !== -1) {
+      users[idx].totalTodayMl = activeUser.totalTodayMl;
+      saveUsers(users);
+    }
   }
 
   saveState();
-  res.json({ message: "Updated", waterLeftLiters, activeUser });
-});
 
+  return res.json({
+    message: "Updated",
+    dry: waterLeftLiters <= 0, // ถ้าหลังหักแล้ว 0 ให้แจ้งแห้ง
+    waterLeftLiters,
+    activeUser,
+  });
+});
 // ✅ SOFT RESET (ไม่ลบ activeUser อีกต่อไป)
 app.post("/api/device/reset", (req, res) => {
   console.log("[RESET] request received");
