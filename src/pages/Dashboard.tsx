@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import WaterPanel from "../components/WaterPanel";
+import UserCard from "../components/UserCard";
 import { authService } from "../services/authService";
 
 interface ActiveUser {
@@ -13,115 +16,156 @@ interface DashboardData {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
+  // backend data
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
+
+  // idle tracking
+  const lastActiveTsRef = useRef<number>(Date.now());
+  const [secondsLeft, setSecondsLeft] = useState<number>(30);
+
+  // prev values for activity detect
+  const lastMlRef = useRef<number | null>(null);
+  const lastLitersRef = useRef<number | null>(null);
+
+  function recordActivity(next: DashboardData) {
+    if (!next.activeUser) return;
+
+    const curMl = next.activeUser.totalTodayMl;
+    const prevMl = lastMlRef.current;
+
+    const curLiters = next.waterLeftLiters;
+    const prevLiters = lastLitersRef.current;
+
+    const usedWater =
+      (prevMl !== null && curMl > prevMl) ||
+      (prevLiters !== null && curLiters < prevLiters);
+
+    if (usedWater) {
+      lastActiveTsRef.current = Date.now();
+    }
+
+    lastMlRef.current = curMl;
+    lastLitersRef.current = curLiters;
+  }
 
   async function load() {
     try {
       const res = await authService.getDashboard();
-      const d = res.data;
+      const d: DashboardData = res.data;
 
-      // ถ้าไม่มี activeUser ให้ redirect ไป login
-      if (d.activeUser === null) {
+      // ถ้าไม่มี activeUser -> กลับ login
+      if (!d.activeUser) {
         navigate("/login");
         return;
       }
 
+      recordActivity(d);
       setData(d);
+      setError("");
     } catch (err: any) {
+      console.error("[dashboard] load error", err);
       setError(err?.response?.data?.message || "failed to load dashboard");
     }
   }
 
-  async function handleReset() {
+  async function handleLogout() {
     try {
-      const res = await authService.resetDevice();
-
-      // ถ้า reset แล้ว activeUser กลายเป็น null ให้ redirect ทันที
-      if (res.data.activeUser === null) {
-        navigate("/login");
-        return;
-      }
-
-      await load();
-    } catch (err) {
-      console.error(err);
-    }
+      await authService.logout();
+    } catch {}
+    navigate("/login");
   }
 
+  // poll dashboard data ทุกวินาที
   useEffect(() => {
     load();
-    const id = setInterval(load, 1000);
-    return () => clearInterval(id);
+    const pollId = setInterval(load, 1000);
+    return () => clearInterval(pollId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // idle auto-logout 30 วิ
+  useEffect(() => {
+    const idleId = setInterval(() => {
+      const now = Date.now();
+      const diffMs = now - lastActiveTsRef.current;
+      const remainMs = 30_000 - diffMs;
+      const remainSec = Math.max(0, Math.ceil(remainMs / 1000));
+      setSecondsLeft(remainSec);
+
+      if (diffMs >= 30_000) {
+        handleLogout();
+      }
+    }, 1000);
+
+    return () => clearInterval(idleId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // states
   if (error) {
     return (
-      <main className="min-h-screen bg-[#d5d5d5] p-4">
-        <div className="max-w-xl mx-auto text-red-600">{error}</div>
+      <main className="min-h-screen bg-[#f5f6fa] flex items-center justify-center p-4">
+        <div className="text-red-600 text-sm">{error}</div>
       </main>
     );
   }
 
-  if (!data) {
+  if (!data || !data.activeUser) {
     return (
-      <main className="min-h-screen bg-[#d5d5d5] p-4">
-        <div className="max-w-xl mx-auto text-gray-800">Loading...</div>
+      <main className="min-h-screen bg-[#f5f6fa] flex items-center justify-center p-4">
+        <div className="text-gray-700 text-sm">Loading...</div>
       </main>
     );
   }
+
+  const { activeUser, waterLeftLiters, users } = data;
+
+  // ✅ เรียงให้ active user อยู่อันดับแรกเสมอ
+  const sortedUsers = [
+    ...users.filter((u) => u.username === activeUser.username),
+    ...users.filter((u) => u.username !== activeUser.username),
+  ];
 
   return (
-    <main className="min-h-screen bg-[#d5d5d5] p-4">
-      <div className="max-w-xl mx-auto flex flex-col gap-4">
-        {/* Panel น้ำคงเหลือ */}
-        <section className="bg-[#312E2F] text-white rounded-md p-4 border border-gray-500 shadow-md">
-          <div className="text-3xl font-bold mb-2">
-            {data.waterLeftLiters.toFixed(1)}L left
+    <main className="bg-[#f5f6fa] min-h-screen p-4">
+      <div className="max-w-5xl mx-auto flex flex-col gap-6">
+        {/* Navbar */}
+        <Navbar username={activeUser.username} onLogout={handleLogout} />
+
+        {/* Water Panel */}
+        <WaterPanel waterLeftLiters={waterLeftLiters} />
+
+        {/* Session timer */}
+        <div className="flex items-center justify-between">
+          <div className="text-[12px] tracking-wide uppercase font-medium text-gray-500">
+            Users today
           </div>
-
-          {data.activeUser ? (
-            <div className="text-sm font-semibold">
-              Current user: {data.activeUser.username} (
-              {data.activeUser.totalTodayMl}ml today)
+          <div className="flex items-center gap-4">
+            <div className="text-[12px] text-gray-500">
+              Auto logout in{" "}
+              <span className="font-semibold text-gray-700">
+                {secondsLeft}s
+              </span>
             </div>
-          ) : (
-            <div className="text-sm font-semibold text-yellow-300">
-              No active user (Please login...)
+            <div className="text-[12px] text-gray-400">
+              {users.length} user{users.length === 1 ? "" : "s"}
             </div>
-          )}
-        </section>
-
-        {/* User list + Reset */}
-        <section className="bg-white rounded-md p-4 shadow border">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-lg">Users</h2>
-
-            <button
-              onClick={handleReset}
-              className="text-xs bg-red-600 text-white rounded px-3 py-1 font-semibold hover:bg-red-500"
-            >
-              Reset Device
-            </button>
           </div>
+        </div>
 
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left border-b">
-                <th className="py-1">Username</th>
-                <th className="py-1 text-right">Today (ml)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.users.map((u) => (
-                <tr key={u.username} className="border-b last:border-0">
-                  <td className="py-1">{u.username}</td>
-                  <td className="py-1 text-right">{u.totalTodayMl}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* User cards grid */}
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedUsers.map((u) => (
+            <UserCard
+              key={u.username}
+              username={u.username}
+              totalTodayMl={u.totalTodayMl}
+              highlight={u.username === activeUser.username}
+            />
+          ))}
         </section>
       </div>
     </main>

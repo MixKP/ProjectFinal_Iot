@@ -127,7 +127,7 @@ void pollStatusAndUpdateLCD() {
     DeserializationError err = deserializeJson(doc, payload);
     if (!err) {
       bool needLogin = doc["needLogin"] | true;
-      const char* line1 = doc["line1"] | "Please login...";
+      const char* line1 = doc["line1"] | "Authentication";
       const char* line2 = doc["line2"] | "";
 
       lcd.clear();

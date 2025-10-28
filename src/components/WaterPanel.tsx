@@ -1,35 +1,21 @@
-type WaterPanelProps = {
-  waterLeft: number;
-};
+interface WaterPanelProps {
+  waterLeftLiters: number;
+}
 
-export function WaterPanel({ waterLeft }: WaterPanelProps) {
-  const liters = (waterLeft / 1000).toFixed(1);
-
+export default function WaterPanel({ waterLeftLiters }: WaterPanelProps) {
   return (
-    <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 className="text-lg font-semibold text-gray-800 mb-2">
-        Water Left
-      </h3>
-
-      <div className="text-2xl font-bold text-gray-900">
-        {liters} L{" "}
-        <span className="text-base font-medium text-gray-500">
-          ({waterLeft} ml)
-        </span>
+    <section className="bg-white rounded-xl shadow-md border border-gray-200 p-6 flex flex-col gap-3">
+      <div className="text-[12px] font-medium text-gray-500 tracking-wide uppercase">
+        Remaining Water
       </div>
 
-      <div className="mt-3 h-2 w-full rounded-full bg-gray-200 overflow-hidden">
-        {/* แถบ progress แบบประมาณคร่าว ๆ: สมมติเต็มคือ 10000 ml */}
-        <div
-          className="h-full bg-blue-500 transition-all"
-          style={{
-            width: `${Math.min((waterLeft / 10000) * 100, 100)}%`,
-          }}
-        />
+      <div className="text-5xl font-semibold text-gray-900 leading-none">
+        {waterLeftLiters.toFixed(1)}
+        <span className="text-2xl font-normal text-gray-500 ml-1">L</span>
       </div>
 
-      <div className="mt-1 text-xs text-gray-500">
-        {Math.min((waterLeft / 10000) * 100, 100).toFixed(0)}% remaining
+      <div className="text-[13px] text-gray-500">
+        Live updated from dispenser
       </div>
     </section>
   );
