@@ -1,4 +1,3 @@
-// src/components/UserList.tsx
 export interface UserSummary {
   username: string;
   totalTodayMl: number;

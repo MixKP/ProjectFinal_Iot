@@ -7,19 +7,13 @@ export default function WaterPanel({
   waterLeftLiters,
   tankCapacityLiters,
 }: WaterPanelProps) {
-  // safety กันหารศูนย์
   const capacity = tankCapacityLiters > 0 ? tankCapacityLiters : 1;
   const pct = Math.max(
     0,
     Math.min(100, (waterLeftLiters / capacity) * 100)
   );
-
-  // เลือกสีตามระดับน้ำที่เหลือ
-  // >50% = เขียวฟ้า
-  // 20-50% = เหลืองอุ่น
-  // <20% = แดงเตือน
   let barColor =
-    "bg-indigo-500"; // default (น้ำยังเยอะ ดูสะอาดเทคโนโลยี)
+    "bg-indigo-500";
   let statusText = "Tank level normal";
 
   if (pct <= 50 && pct > 20) {

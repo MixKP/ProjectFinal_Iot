@@ -6,7 +6,6 @@ interface NavbarProps {
 export default function Navbar({ username, onLogout }: NavbarProps) {
   return (
     <header className="flex items-center justify-between bg-white/70 backdrop-blur-sm rounded-xl border border-gray-200 px-4 py-3 shadow-sm">
-      {/* left: logo / brand */}
       <div className="flex items-center gap-2">
         <div className="h-9 w-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-semibold shadow-sm">
           H2O

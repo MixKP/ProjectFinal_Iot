@@ -8,15 +8,9 @@ const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// -------------------------------------------------
-// File paths
-// -------------------------------------------------
 const USERS_FILE = path.join(__dirname, "users.json");
 const STATE_FILE = path.join(__dirname, "state.json");
 
-// -------------------------------------------------
-// Helpers: load / save users.json
-// -------------------------------------------------
 function ensureUsersFile() {
   if (!fs.existsSync(USERS_FILE)) {
     fs.writeFileSync(USERS_FILE, "[]", "utf8");
@@ -45,9 +39,6 @@ function saveUsers(usersArray) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(usersArray, null, 2), "utf8");
 }
 
-// -------------------------------------------------
-// Helpers: load / save state.json
-// -------------------------------------------------
 function loadState() {
   const defaultState = { activeUser: null, waterLeftLiters: 10.0 };
 
@@ -88,15 +79,8 @@ function saveState() {
   );
 }
 
-// -------------------------------------------------
-// Runtime state
-// -------------------------------------------------
 let users = loadUsers();
 let { activeUser, waterLeftLiters } = loadState();
-
-// -------------------------------------------------
-// Routes
-// -------------------------------------------------
 
 // REGISTER
 app.post("/api/register", (req, res) => {
@@ -125,7 +109,7 @@ app.post("/api/login", (req, res) => {
   );
 
   if (!found)
-    return res.status(401).json({ message: "Invalid credentials" });
+    return res.status(401).json({ message: "Username and/or password incorrect" });
 
   activeUser = { username: found.username, totalTodayMl: found.totalTodayMl };
   saveState();
@@ -159,28 +143,23 @@ app.post("/api/device/update", (req, res) => {
   const { usedMlPerTick } = req.body;
   const usedMl = Number(usedMlPerTick || 0);
 
-  // ไม่มีน้ำเหลือแล้ว
   if (waterLeftLiters <= 0) {
-    waterLeftLiters = 0; // กันค่าติดลบหลุดรอด
+    waterLeftLiters = 0;
     saveState();
     return res.json({
       message: "No water left",
-      dry: true, // flag บอก ESP / frontend ว่าหมดน้ำ
+      dry: true,
       waterLeftLiters,
       activeUser,
     });
   }
 
-  // มีน้ำเหลือบ้าง -> คำนวน usage จริงที่ดึงออกได้
-  // กรณีถังเหลือน้อยกว่า usedMlPerTick
-  const availableMl = Math.round(waterLeftLiters * 1000.0); // แปลง L -> ml ที่เหลือจริง
-  const actualUsedMl = Math.min(usedMl, availableMl); // ใช้ได้เท่านี้จริง
+  const availableMl = Math.round(waterLeftLiters * 1000.0);
+  const actualUsedMl = Math.min(usedMl, availableMl);
 
-  // หักน้ำในถัง
   waterLeftLiters -= actualUsedMl / 1000.0;
   if (waterLeftLiters < 0) waterLeftLiters = 0;
 
-  // บวกยอดให้ user ถ้าล็อกอินอยู่
   if (activeUser && actualUsedMl > 0) {
     activeUser.totalTodayMl += actualUsedMl;
 
@@ -197,16 +176,16 @@ app.post("/api/device/update", (req, res) => {
 
   return res.json({
     message: "Updated",
-    dry: waterLeftLiters <= 0, // ถ้าหลังหักแล้ว 0 ให้แจ้งแห้ง
+    dry: waterLeftLiters <= 0,
     waterLeftLiters,
     activeUser,
   });
 });
-// ✅ SOFT RESET (ไม่ลบ activeUser อีกต่อไป)
+// DEVICE RESET
 app.post("/api/device/reset", (req, res) => {
   console.log("[RESET] request received");
   waterLeftLiters = 10.0;
-  // activeUser = null; // ❌ ลบออกเพื่อไม่ให้ reset login
+  activeUser = null;
 
   saveState();
   console.log("[RESET] after soft reset =", { waterLeftLiters, activeUser });
@@ -226,10 +205,8 @@ app.get("/api/dashboard", (req, res) => {
   });
 });
 
-// -------------------------------------------------
 // Start server
-// -------------------------------------------------
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`✅ Backend running on port ${PORT}`);
+  console.log(`Backend running on port ${PORT}`);
 });

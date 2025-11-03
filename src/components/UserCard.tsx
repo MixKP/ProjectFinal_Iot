@@ -1,7 +1,7 @@
 interface UserCardProps {
   username: string;
   totalTodayMl: number;
-  highlight?: boolean; // true if this is the active user
+  highlight?: boolean;
 }
 
 export default function UserCard({
@@ -9,7 +9,7 @@ export default function UserCard({
   totalTodayMl,
   highlight = false,
 }: UserCardProps) {
-  const liters = totalTodayMl / 1000; // แปลง ml -> L สมมติอยากโชว์เป็น L สวย ๆ
+  const liters = totalTodayMl / 1000;
 
   return (
     <div

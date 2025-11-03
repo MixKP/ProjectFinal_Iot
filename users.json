@@ -1,17 +1,7 @@
 [
   {
-    "username": "admin",
-    "password": "1234",
-    "totalTodayMl": 37500
-  },
-  {
-    "username": "mix",
-    "password": "1234",
-    "totalTodayMl": 18699
-  },
-  {
-    "username": "user1",
-    "password": "123",
-    "totalTodayMl": 1800
+    "username": "test",
+    "password": "test",
+    "totalTodayMl": 2700
   }
 ]

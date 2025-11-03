@@ -5,34 +5,28 @@
 #include <LiquidCrystal_I2C.h>
 
 // ====== CONFIG ======
-const char* WIFI_SSID = "MIX&MIN_2.4GHz";
-const char* WIFI_PASS = "0957530900";
+const char* WIFI_SSID = "Mix";
+const char* WIFI_PASS = "mixer34324";
 
-String BASE_URL = "http://192.168.1.34:3000"; // เปลี่ยนเป็น IP backend ของคุณ
+String BASE_URL = "http://172.20.10.2:3000";
 
-// ปุ่มน้ำ (ตอนนี้เราจะ treat มันเป็นปุ่มธรรมดา D5 <-> GND)
 const int PIN_USE_BUTTON   = D5;
-// ปุ่มรีเซ็ตแทงเข้า reset water (D6 <-> GND) -- ยังไม่ต้องต่อก็ได้
 const int PIN_RESET_BUTTON = 0;
 
-// ml ต่อ tick
 const int USED_ML_PER_TICK = 50;
 
-// ยิง update ทุกกี่ ms ระหว่างกดค้าง
 const unsigned long FLOW_INTERVAL_MS = 200;
 
-// LCD poll interval
 const unsigned long POLL_INTERVAL = 1000;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// ----- state -----
 unsigned long lastPoll = 0;
 unsigned long lastFlowSend = 0;
 
-bool flowActive = false;        // ตอนนี้ถือว่า "กำลังไหลน้ำ" อยู่ไหม
-bool prevUsePressed = false;    // สถานะปุ่มน้ำรอบก่อน
-bool prevResetPressed = false;  // สถานะปุ่ม reset รอบก่อน
+bool flowActive = false;
+bool prevUsePressed = false;
+bool prevResetPressed = false;
 
 void setupWiFi() {
   WiFi.mode(WIFI_STA);
@@ -43,11 +37,7 @@ void setupWiFi() {
 }
 
 void setup() {
-  // IMPORTANT:
-  // ดึงขึ้นไว้ภายใน -> ยังไม่ต่ออะไร ขาจะอยู่ HIGH เสมอ -> ถือว่า "ไม่กด"
   pinMode(PIN_USE_BUTTON, INPUT_PULLUP);
-
-  // ปุ่มรีเซ็ตก็เหมือนกัน ใช้ปุ่ม 2 ขา D6 <-> GND
   pinMode(PIN_RESET_BUTTON, INPUT_PULLUP);
 
   lcd.init();
@@ -57,38 +47,29 @@ void setup() {
 
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("Booting...");
 }
 
 void loop() {
   unsigned long now = millis();
 
-  // 1) อัปเดตจอทุก 1 วิ
   if (now - lastPoll >= POLL_INTERVAL) {
     lastPoll = now;
     pollStatusAndUpdateLCD();
   }
 
-  // 2) อ่านปุ่มน้ำ
-  // ตอนนี้ logic คือ:
-  //   กดปุ่มจริง = ขา D5 ลง GND = digitalRead(D5) == LOW
-  //   ยังไม่กด = digitalRead(D5) == HIGH
   bool isUsePressed = (digitalRead(PIN_USE_BUTTON) == HIGH);
 
-  // transition: เริ่มกด -> เริ่ม "เปิดน้ำ"
   if (isUsePressed && !prevUsePressed) {
     flowActive = true;
-    lastFlowSend = now; // เริ่มจับเวลา tick
+    lastFlowSend = now;
   }
 
-  // transition: ปล่อยปุ่ม -> หยุดน้ำ
   if (!isUsePressed && prevUsePressed) {
     flowActive = false;
   }
 
   prevUsePressed = isUsePressed;
 
-  // ถ้ากำลังไหล -> ยิง /api/device/update เป็น interval
   if (flowActive) {
     if (now - lastFlowSend >= FLOW_INTERVAL_MS) {
       lastFlowSend = now;
@@ -96,7 +77,6 @@ void loop() {
     }
   }
 
-  // 3) ปุ่ม reset
   bool isResetPressed = (digitalRead(PIN_RESET_BUTTON) == LOW);
   if (isResetPressed && !prevResetPressed) {
     sendReset();
@@ -105,8 +85,6 @@ void loop() {
 
   delay(10);
 }
-
-// ===================== helpers =====================
 
 void pollStatusAndUpdateLCD() {
   if (WiFi.status() != WL_CONNECTED) {

@@ -3,10 +3,9 @@ import { useState } from "react";
 interface AuthFormProps {
   mode: "login" | "register";
   onSubmit: (username: string, password: string) => Promise<void>;
-  errorMessage?: string;
 }
 
-export default function AuthForm({ mode, onSubmit, errorMessage }: AuthFormProps) {
+export default function AuthForm({ mode, onSubmit }: AuthFormProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -20,9 +19,7 @@ export default function AuthForm({ mode, onSubmit, errorMessage }: AuthFormProps
   return (
     <main className="min-h-screen bg-[#f5f6fa] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* card */}
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 flex flex-col gap-5">
-          {/* brand / heading */}
           <div className="flex flex-col items-center text-center gap-2">
             <div className="h-10 w-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-semibold shadow-sm">
               H2O
@@ -39,14 +36,6 @@ export default function AuthForm({ mode, onSubmit, errorMessage }: AuthFormProps
             </div>
           </div>
 
-          {/* error box */}
-          {errorMessage && (
-            <div className="bg-red-50 text-red-600 border border-red-200 text-[12px] rounded-lg px-3 py-2 text-center">
-              {errorMessage}
-            </div>
-          )}
-
-          {/* form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-[12px] font-medium text-gray-700">
@@ -81,7 +70,6 @@ export default function AuthForm({ mode, onSubmit, errorMessage }: AuthFormProps
             </button>
           </form>
 
-          {/* switch link */}
           <div className="text-center text-[12px] text-gray-600">
             {isLogin ? (
               <>

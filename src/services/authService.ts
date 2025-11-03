@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE = "http://192.168.1.34:3000/api";
+const API_BASE = "http://172.20.10.2:3000/api";
 
 export const authService = {
   register(username: string, password: string) {
