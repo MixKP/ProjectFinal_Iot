@@ -205,7 +205,12 @@ The system uses JSON files for data persistence:
 
 ## 🔐 Security Note
 
-⚠️ **Warning**: This is a prototype/educational project. The authentication system stores passwords in plain text. For production use, implement proper password hashing (bcrypt, argon2, etc.) and use proper authentication tokens (JWT).
+⚠️ **Warning**: This is a prototype/educational project. The authentication system stores passwords in plain text. For production use, implement:
+- Proper password hashing (bcrypt, argon2, etc.)
+- Authentication tokens (JWT) with proper session management
+- HTTPS/TLS for encrypted communication
+- Input validation and sanitization
+- Rate limiting for API endpoints
 
 ## 📝 Development
 
